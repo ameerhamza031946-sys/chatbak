@@ -1,28 +1,45 @@
 import logging
 import os
-from contextlib import asynccontextmanager
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from app.core.config import settings
-from app.database.mongodb import db_conn
-from app.routes.auth import router as auth_router
-from app.routes.chat import router as chat_router
-from app.routes.system import router as system_router
+import sys
+import traceback
 
-# Setup logging
+# Setup basic logging FIRST before any imports that might fail
 logging.basicConfig(
-    level=logging.INFO if settings.DEBUG else logging.WARNING,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    stream=sys.stdout
 )
 logger = logging.getLogger("app.main")
 
+try:
+    from contextlib import asynccontextmanager
+    from fastapi import FastAPI
+    from fastapi.middleware.cors import CORSMiddleware
+    from app.core.config import settings
+    from app.database.mongodb import db_conn
+    from app.routes.auth import router as auth_router
+    from app.routes.chat import router as chat_router
+    from app.routes.system import router as system_router
+    logger.info("All imports successful.")
+except Exception as e:
+    logger.error(f"FATAL IMPORT ERROR: {e}")
+    traceback.print_exc()
+    sys.exit(1)
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: Connect to Database
-    await db_conn.connect()
+    logger.info("Starting up...")
+    try:
+        await db_conn.connect()
+        logger.info("Database connection complete.")
+    except Exception as e:
+        logger.error(f"Database startup error: {e}")
     yield
-    # Shutdown: Disconnect Database
-    await db_conn.disconnect()
+    # Shutdown
+    try:
+        await db_conn.disconnect()
+    except Exception:
+        pass
 
 app = FastAPI(
     title="AI Nexus Chat API",
@@ -34,7 +51,7 @@ app = FastAPI(
 # Enable CORS for frontend connection
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, specify actual frontend domain
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -54,5 +71,7 @@ async def root():
 
 if __name__ == "__main__":
     import uvicorn
-    logger.info(f"Starting server on {settings.HOST}:{settings.PORT}")
-    uvicorn.run("app.main:app", host=settings.HOST, port=settings.PORT, reload=settings.DEBUG)
+    port = int(os.environ.get("PORT", getattr(settings, "PORT", 8000)))
+    host = os.environ.get("HOST", "0.0.0.0")
+    logger.info(f"Starting server on {host}:{port}")
+    uvicorn.run("app.main:app", host=host, port=port, reload=False)
