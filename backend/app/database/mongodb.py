@@ -19,7 +19,12 @@ class DatabaseConnector:
 
         try:
             logger.info("Connecting to MongoDB...")
-            self.client = AsyncIOMotorClient(settings.MONGODB_URL, serverSelectionTimeoutMS=3000)
+            self.client = AsyncIOMotorClient(
+                settings.MONGODB_URL,
+                serverSelectionTimeoutMS=5000,
+                tls=True,
+                tlsAllowInvalidCertificates=True
+            )
             # Try to ping admin database to verify connection
             await self.client.admin.command('ping')
             
