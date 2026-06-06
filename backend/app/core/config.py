@@ -8,6 +8,7 @@ load_dotenv()
 class Settings(BaseSettings):
     OPENAI_API_KEY: str = ""
     GEMINI_API_KEY: str = ""
+    OPENROUTER_API_KEY: str = ""
     MONGODB_URL: str = ""
     JWT_SECRET: str = "default_local_jwt_secret_key_67b8a74e92a10"
     JWT_ALGORITHM: str = "HS256"
